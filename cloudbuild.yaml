@@ -1,0 +1,27 @@
+steps:
+  # Install dependencies
+  - name: 'python:3.11'
+    entrypoint: pip
+    args: ['install', '-r', 'requirements.txt', '--user']
+
+  # Deploy the function
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'functions'
+      - 'deploy'
+      - 'ai_press_review_agent'
+      - '--runtime'
+      - 'python311'
+      - '--trigger-http'
+      - '--allow-unauthenticated'
+      - '--entry-point'
+      - 'perform_press_review'
+      - '--env-vars-file'
+      - '.env.yaml'
+      - '--region'
+      - 'europe-west9'
+      - '--timeout'
+      - '540s'
+      - '--memory'
+      - '512MB' 

@@ -4,13 +4,13 @@ A service that monitors multiple YouTube channels for new videos and sends detai
 
 ## Setup
 
-1. Create a `.env` file with the following variables:
-```
-YOUTUBE_API_KEY=your_youtube_api_key
-TELEGRAM_BOT_TOKEN=your_telegram_bot_token
-TELEGRAM_CHAT_ID=your_telegram_chat_id
-YOUTUBE_CHANNEL_IDS=channel_id1,channel_id2,channel_id3
-GEMINI_API_KEY=your_gemini_api_key
+1. Create a `.env.yaml` file with the following variables:
+```yaml
+YOUTUBE_API_KEY: "your_youtube_api_key"
+TELEGRAM_BOT_TOKEN: "your_telegram_bot_token"
+TELEGRAM_CHAT_ID: "your_telegram_chat_id"
+YOUTUBE_CHANNEL_IDS: "channel_id1,channel_id2,channel_id3"
+GEMINI_API_KEY: "your_gemini_api_key"
 ```
 
 2. Get your YouTube API key:
@@ -22,7 +22,7 @@ GEMINI_API_KEY=your_gemini_api_key
 3. Get your Gemini API key:
    - Go to the [Google AI Studio](https://makersuite.google.com/app/apikey)
    - Create an API key
-   - Copy the key to your .env file
+   - Copy the key to your .env.yaml file
 
 4. Set up your Telegram bot:
    - Message [@BotFather](https://t.me/botfather) on Telegram
@@ -77,32 +77,79 @@ GEMINI_API_KEY=your_gemini_api_key
       - When you make any API call that returns channel information
       - The channel ID will be in the response under `items[0].id`
 
-   Once you have the channel IDs, add them to your `.env` file, separated by commas:
-   ```
-   YOUTUBE_CHANNEL_IDS=UCxxxxxxxxxxxxxxxxxxxxxxxxx,UCyyyyyyyyyyyyyyyyyyyyyyyyy
+   Once you have the channel IDs, add them to your `.env.yaml` file, separated by commas:
+   ```yaml
+   YOUTUBE_CHANNEL_IDS: "UCxxxxxxxxxxxxxxxxxxxxxxxxx,UCyyyyyyyyyyyyyyyyyyyyyyyyy"
    ```
 
-## Deployment to Google Cloud Run
+## Deployment to Google Cloud Functions
 
 1. Install the [Google Cloud SDK](https://cloud.google.com/sdk/docs/install)
 
-2. Build and deploy the container:
+2. Authenticate with Google Cloud:
 ```bash
-gcloud builds submit --tag gcr.io/[PROJECT-ID]/ai-press-review-agent
-gcloud run deploy ai-press-review-agent \
-  --image gcr.io/[PROJECT-ID]/ai-press-review-agent \
-  --platform managed \
-  --region [REGION] \
-  --allow-unauthenticated
+gcloud auth login
+gcloud config set project [YOUR_PROJECT_ID]
 ```
 
-3. Set up Cloud Scheduler to run the service every 6 hours:
+3. Enable required APIs:
 ```bash
-gcloud scheduler jobs create http ai-press-review-agentjob \
+gcloud services enable cloudfunctions.googleapis.com
+gcloud services enable cloudbuild.googleapis.com
+```
+
+4. Deploy the function using Cloud Functions:
+```bash
+gcloud functions deploy ai_press_review_agent \
+  --runtime python311 \
+  --trigger-http \
+  --entry-point perform_press_review \
+  --region [YOUR_REGION] \
+  --timeout 540s  \
+  --memory 512MB \
+  --source . \
+  --allow-unauthenticated \
+  --env-vars-file .env.yaml 
+```
+
+The function will be deployed with the following configuration:
+- Runtime: Python 3.11
+- Region: [YOUR_REGION] (for example, europe-west9)
+- Memory: 512MB
+- Timeout: 540 seconds
+- Trigger: HTTP
+- Entry point: perform_press_review
+
+5. Set up Cloud Scheduler to run the function periodically:
+```bash
+gcloud scheduler jobs create http ai-press-review-job \
   --schedule "0 */6 * * *" \
-  --uri "https://[REGION]-[PROJECT-ID].cloudfunctions.net/ai-press-review-agent" \
+  --uri "https://[YOUR_REGION]-[YOUR_PROJECT_ID].cloudfunctions.net/ai_press_review_agent" \
   --http-method GET
 ```
+
+### Updating the Schedule
+
+To change how often the function runs:
+
+1. Delete the existing scheduler job:
+```bash
+gcloud scheduler jobs delete ai-press-review-job
+```
+
+2. Create a new scheduler job with the desired schedule:
+```bash
+gcloud scheduler jobs create http ai-press-review-job \
+  --schedule "[NEW_SCHEDULE]" \
+  --uri "https://[YOUR_REGION]-[YOUR_PROJECT_ID].cloudfunctions.net/ai_press_review_agent" \
+  --http-method GET
+```
+
+Common schedule formats:
+- Every 6 hours: `"0 */6 * * *"`
+- Every 12 hours: `"0 */12 * * *"`
+- Daily at midnight: `"0 0 * * *"`
+- Weekly on Monday at 9 AM: `"0 9 * * 1"`
 
 ## Environment Variables
 

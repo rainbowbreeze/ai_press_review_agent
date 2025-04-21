@@ -1,3 +1,4 @@
+import functions_framework
 import os
 from datetime import datetime, timedelta
 from googleapiclient.discovery import build
@@ -181,14 +182,18 @@ async def check_and_notify():
         if datetime.now(video_published_at.tzinfo) - video_published_at > timedelta(hours=6):
             print(f"No new videos in the last 6 hours for channel {channel_id}")
             continue
-
+        
         # Create summary and send notification
         summary = await create_video_summary(latest_video)
         if summary:  # Only send notification if summary was generated
             await send_telegram_message(latest_video, summary)
             print(f"New video notification and summary sent successfully for channel {channel_id}")
         else:
-            print(f"New video notification sent for channel {channel_id}, but there where errors in creating the summary")
+            print(f"New video notification sent for channel {channel_id}, but there were errors in creating the summary")
 
-if __name__ == "__main__":
+@functions_framework.http
+def perform_press_review(request):
+    """Cloud Function entry point."""
+    # Run the async function
     asyncio.run(check_and_notify())
+    return "AI Press Review Agent completed successfully"
