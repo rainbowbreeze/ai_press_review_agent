@@ -28,6 +28,10 @@ youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
 genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-2.0-flash-lite')
 
+def is_cloud_function():
+    """Check if the code is running in a Google Cloud Function environment."""
+    return os.getenv('FUNCTION_TARGET') is not None
+
 async def send_error_notification(video_id, video_title, error_message):
     """Send an error notification to Telegram."""
     try:
@@ -77,7 +81,7 @@ async def get_latest_video(channel_id):
         await send_error_notification("N/A", f"Channel {channel_id}", error_message)
         return None
 
-def get_video_transcription(video_id, video_title):
+def get_video_transcription_via_yt_transcription_lib(video_id, video_title):
     """Extract the video transcription using youtube-transcript-api."""
     try:
         # Get the transcript
@@ -88,6 +92,45 @@ def get_video_transcription(video_id, video_title):
         transcript_text = formatter.format_transcript(transcript_list)
         
         return transcript_text, None
+        
+    except Exception as e:
+        error_message = f"Error getting video transcription: {str(e)}"
+        print(error_message)
+        return None, error_message
+
+def get_video_transcription_via_yt_api(video_id, video_title):
+    """Extract the video transcription using YouTube Data API."""
+    try:
+        # Get the captions list
+        captions_request = youtube.captions().list(
+            part="snippet",
+            videoId=video_id
+        )
+        captions_response = captions_request.execute()
+        
+        if not captions_response.get('items'):
+            return None, "No captions available for this video"
+        
+        # Get the first available caption track (usually the main one)
+        caption_id = captions_response['items'][0]['id']
+        
+        # Download the caption track
+        caption_request = youtube.captions().download(
+            id=caption_id
+        )
+        caption_response = caption_request.execute()
+        
+        # The response is in TTML format, we need to parse it
+        # This is a simplified parsing, you might need to adjust based on the actual format
+        transcript_text = ""
+        for line in caption_response.split('\n'):
+            if '<text' in line:
+                # Extract the text content
+                text = line.split('>')[1].split('<')[0]
+                transcript_text += text + " "
+        
+        return transcript_text.strip(), None
+        
     except Exception as e:
         error_message = f"Error getting video transcription: {str(e)}"
         print(error_message)
@@ -97,8 +140,11 @@ async def create_video_summary(video):
     """Create a detailed summary of the video using Gemini API."""
     video_url = f"https://www.youtube.com/watch?v={video['video_id']}"
     
-    # Get video transcription
-    transcription, error_message = get_video_transcription(video['video_id'], video['title'])
+    # Get video transcription based on environment
+    if is_cloud_function():
+        transcription, error_message = get_video_transcription_via_yt_api(video['video_id'], video['title'])
+    else:
+        transcription, error_message = get_video_transcription_via_yt_transcription_lib(video['video_id'], video['title'])
     
     if not transcription:
         print(f"No transcription available for video {video['title']}")
@@ -175,6 +221,7 @@ async def check_and_notify():
         # Get the latest video
         latest_video = await get_latest_video(channel_id.strip())
         if not latest_video:
+            print(f"No videos found for channel {channel_id}")
             continue
         
         # Check if the video was published in the last 6 hours
@@ -198,11 +245,11 @@ def perform_press_review(request):
     asyncio.run(check_and_notify())
     return "AI Press Review Agent completed successfully"
 
-def main():
+def perform_press_review_via_cli():
     """Command line entry point."""
-    print("Starting AI Press Review Agent...")
+    print("Starting AI Press Review Agent via CLI...")
     asyncio.run(check_and_notify())
-    print("AI Press Review Agent completed successfully")
+    print("AI Press Review Agent completed successfully via CLI")
 
 if __name__ == "__main__":
-    main()
+    perform_press_review_via_cli()
