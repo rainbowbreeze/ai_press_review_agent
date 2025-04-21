@@ -88,9 +88,9 @@ GEMINI_API_KEY=your_gemini_api_key
 
 2. Build and deploy the container:
 ```bash
-gcloud builds submit --tag gcr.io/[PROJECT-ID]/youtube-monitor
-gcloud run deploy youtube-monitor \
-  --image gcr.io/[PROJECT-ID]/youtube-monitor \
+gcloud builds submit --tag gcr.io/[PROJECT-ID]/ai-press-review-agent
+gcloud run deploy ai-press-review-agent \
+  --image gcr.io/[PROJECT-ID]/ai-press-review-agent \
   --platform managed \
   --region [REGION] \
   --allow-unauthenticated
@@ -98,9 +98,9 @@ gcloud run deploy youtube-monitor \
 
 3. Set up Cloud Scheduler to run the service every 6 hours:
 ```bash
-gcloud scheduler jobs create http youtube-monitor-job \
+gcloud scheduler jobs create http ai-press-review-agentjob \
   --schedule "0 */6 * * *" \
-  --uri "https://[REGION]-[PROJECT-ID].cloudfunctions.net/youtube-monitor" \
+  --uri "https://[REGION]-[PROJECT-ID].cloudfunctions.net/ai-press-review-agent" \
   --http-method GET
 ```
 
