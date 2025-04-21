@@ -8,6 +8,7 @@ from telegram.error import TelegramError
 from dotenv import load_dotenv
 import google.generativeai as genai
 from youtube_transcript_api import YouTubeTranscriptApi
+from youtube_transcript_api.proxies import WebshareProxyConfig
 from youtube_transcript_api.formatters import TextFormatter
 import asyncio
 
@@ -20,6 +21,8 @@ TELEGRAM_BOT_TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID')
 CHANNEL_IDS = os.getenv('YOUTUBE_CHANNEL_IDS', '').split(',')
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+WEBSHARE_PROXY_USERNAME = os.getenv('WEBSHARE_PROXY_USERNAME')
+WEBSHARE_PROXY_PASSWORD = os.getenv('WEBSHARE_PROXY_PASSWORD')
 
 # Initialize YouTube API client
 youtube = build('youtube', 'v3', developerKey=YOUTUBE_API_KEY)
@@ -84,8 +87,21 @@ async def get_latest_video(channel_id):
 def get_video_transcription_via_yt_transcription_lib(video_id, video_title):
     """Extract the video transcription using youtube-transcript-api."""
     try:
+
+        if is_cloud_function():
+            # all requests done by ytt_api will now be proxied through Webshare
+            # https://github.com/jdepoix/youtube-transcript-api?tab=readme-ov-file#working-around-ip-bans-requestblocked-or-ipblocked-exception
+            ytt_api = YouTubeTranscriptApi(
+                proxy_config=WebshareProxyConfig(
+                    proxy_username=WEBSHARE_PROXY_USERNAME,
+                    proxy_password=WEBSHARE_PROXY_PASSWORD,
+                )
+            )
+        else:
+            ytt_api = YouTubeTranscriptApi()
+
         # Get the transcript
-        transcript_list = YouTubeTranscriptApi().fetch(video_id)
+        transcript_list = ytt_api.fetch(video_id)
         
         # Format the transcript into a single string
         formatter = TextFormatter()
@@ -141,10 +157,11 @@ async def create_video_summary(video):
     video_url = f"https://www.youtube.com/watch?v={video['video_id']}"
     
     # Get video transcription based on environment
-    if is_cloud_function():
-        transcription, error_message = get_video_transcription_via_yt_api(video['video_id'], video['title'])
-    else:
-        transcription, error_message = get_video_transcription_via_yt_transcription_lib(video['video_id'], video['title'])
+    #if is_cloud_function():
+    #    transcription, error_message = get_video_transcription_via_yt_api(video['video_id'], video['title'])
+    #else:
+    #    transcription, error_message = get_video_transcription_via_yt_transcription_lib(video['video_id'], video['title'])
+    transcription, error_message = get_video_transcription_via_yt_transcription_lib(video['video_id'], video['title'])
     
     if not transcription:
         print(f"No transcription available for video {video['title']}")
@@ -153,9 +170,9 @@ async def create_video_summary(video):
         return None
     
     prompt = f"""
-    Please analyze this YouTube video and provide a concise summary in Telegram markdown format, without mentioning it is optimized for Telegram.
+    Please analyze this YouTube video and provide a concise summary.
+    
     Here are the details:
-
     Video Title: {video['title']}
     Video Description: {video['description']}
     Video URL: {video_url}
@@ -220,7 +237,6 @@ async def send_telegram_message(video, summary):
         await bot.send_message(
             chat_id=TELEGRAM_CHAT_ID,
             text=message,
-            parse_mode='Markdown',
             disable_web_page_preview=False
         )
     except TelegramError as e:
