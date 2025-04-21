@@ -120,6 +120,8 @@ The function will be deployed with the following configuration:
 - Trigger: HTTP
 - Entry point: perform_press_review
 
+([source](https://cloud.google.com/sdk/gcloud/reference/functions/deploy))
+
 5. Set up Cloud Scheduler to run the function periodically:
 ```bash
 gcloud scheduler jobs create http ai-press-review-job \
