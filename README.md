@@ -1,6 +1,6 @@
-# YouTube Video Monitor
+# AI Press Review Agent
 
-A service that monitors multiple YouTube channels for new videos and sends detailed summaries to a Telegram chat using Gemini AI.
+A service that monitors multiple YouTube channels for new videos and sends detailed summaries to a Telegram chat.
 
 ## Setup
 
