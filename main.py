@@ -153,7 +153,8 @@ async def create_video_summary(video):
         return None
     
     prompt = f"""
-    Please analyze this YouTube video and provide a concise summary. Here are the details:
+    Please analyze this YouTube video and provide a concise summary in Telegram markdown format, without mentioning it is optimized for Telegram.
+    Here are the details:
 
     Video Title: {video['title']}
     Video Description: {video['description']}
@@ -164,17 +165,23 @@ async def create_video_summary(video):
 
     Based on the above information, please provide a structured summary that includes:
 
-    1. DETAILED CONTENT BREAKDOWN
+    *DETAILED CONTENT BREAKDOWN*
     - Break down the video content into logical sections
     - Explain the flow of the discussion
     - Note any important examples or demonstrations
 
-    2. TECHNICAL DETAILS (if applicable)
+    *TECHNICAL DETAILS* (if applicable)
     - Note any specific tools, technologies, or methods mentioned
     - Explain any technical concepts or processes
     - List any code snippets or commands if relevant
 
-    Please keep the summary concise and focused on the most important points. Aim for a length that can be easily read in less than one minute.
+    Please format your response using Telegram markdown:
+    - Use *asterisks* for bold text
+    - Use _underscores_ for italic text
+    - Use `backticks` for code snippets
+    - Use - for bullet points
+    - Keep the summary concise and focused on the most important points
+    - Aim for a length that can be read in less than one minute
     """
     
     try:
@@ -199,16 +206,23 @@ async def send_telegram_message(video, summary):
         channel_response = channel_request.execute()
         channel_name = channel_response['items'][0]['snippet']['title'] if channel_response['items'] else "Unknown Channel"
         
+        # Format the message with markdown
         message = f"""
-🎥 New Video Alert! 🎥
+🎥 *New Video Alert!* 🎥
 
 📺 Channel: {channel_name}
 📺 Title: {video['title']}
-📝 Summary: {summary}
+📝 Summary:
+{summary}
 🔗 Watch here: https://www.youtube.com/watch?v={video['video_id']}
         """
         
-        await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+        await bot.send_message(
+            chat_id=TELEGRAM_CHAT_ID,
+            text=message,
+            parse_mode='Markdown',
+            disable_web_page_preview=False
+        )
     except TelegramError as e:
         print(f"Error sending Telegram message: {str(e)}")
 
