@@ -197,3 +197,12 @@ def perform_press_review(request):
     # Run the async function
     asyncio.run(check_and_notify())
     return "AI Press Review Agent completed successfully"
+
+def main():
+    """Command line entry point."""
+    print("Starting AI Press Review Agent...")
+    asyncio.run(check_and_notify())
+    print("AI Press Review Agent completed successfully")
+
+if __name__ == "__main__":
+    main()
