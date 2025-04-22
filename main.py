@@ -85,7 +85,12 @@ async def get_latest_video(channel_id):
         return None
 
 def get_video_transcription_via_yt_transcription_lib(video_id, video_title):
-    """Extract the video transcription using youtube-transcript-api."""
+    """Extract the video transcription using youtube-transcript-api.
+    
+    Unfortunately, it seems this function is not working. Need to investigate
+      more, it was initially proposed by Cursor to get video transcript, but
+      it doesn't work both when run locally and when deployed to Cloud Function.
+    """
     try:
 
         if is_cloud_function():
@@ -98,6 +103,8 @@ def get_video_transcription_via_yt_transcription_lib(video_id, video_title):
                 )
             )
         else:
+            # When running locally, we don't need to proxy through Webshare because
+            # YouTube doesn't block "consumer" IP addresses.
             ytt_api = YouTubeTranscriptApi()
 
         # Get the transcript
@@ -157,10 +164,6 @@ async def create_video_summary(video):
     video_url = f"https://www.youtube.com/watch?v={video['video_id']}"
     
     # Get video transcription based on environment
-    #if is_cloud_function():
-    #    transcription, error_message = get_video_transcription_via_yt_api(video['video_id'], video['title'])
-    #else:
-    #    transcription, error_message = get_video_transcription_via_yt_transcription_lib(video['video_id'], video['title'])
     transcription, error_message = get_video_transcription_via_yt_transcription_lib(video['video_id'], video['title'])
     
     if not transcription:
