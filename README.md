@@ -11,6 +11,8 @@ TELEGRAM_BOT_TOKEN: "your_telegram_bot_token"
 TELEGRAM_CHAT_ID: "your_telegram_chat_id"
 YOUTUBE_CHANNEL_IDS: "channel_id1,channel_id2,channel_id3"
 GEMINI_API_KEY: "your_gemini_api_key"
+WEBSHARE_PROXY_USERNAME: "your_webshare_username"  # Optional: For YouTube API requests
+WEBSHARE_PROXY_PASSWORD: "your_webshare_password"  # Optional: For YouTube API requests
 ```
 
 2. Get your YouTube API key:
@@ -160,6 +162,29 @@ Common schedule formats:
 - `TELEGRAM_CHAT_ID`: The chat ID where notifications will be sent
 - `YOUTUBE_CHANNEL_IDS`: Comma-separated list of YouTube channel IDs to monitor
 - `GEMINI_API_KEY`: Your Google Gemini API key
+- `WEBSHARE_PROXY_USERNAME`: Your WebShare Proxy username (optional)
+- `WEBSHARE_PROXY_PASSWORD`: Your WebShare Proxy password (optional)
+
+### Proxy Configuration (Optional)
+
+If you're experiencing transcriptions error, this is because blocked IP of cloud providers. It's well documented [here](https://github.com/jdepoix/youtube-transcript-api?tab=readme-ov-file#working-around-ip-bans-requestblocked-or-ipblocked-exception)
+
+#### Setting up WebShare Proxy
+
+1. Sign up for a WebShare account at [webshare.io](https://www.webshare.io/)
+2. Choose a proxy plan that suits your needs
+3. Get your proxy credentials from the WebShare dashboard
+4. Add the following to your `.env.yaml` file:
+
+```yaml
+WEBSHARE_PROXY_USERNAME: "your_webshare_username"
+WEBSHARE_PROXY_PASSWORD: "your_webshare_password"
+```
+
+The proxy will be automatically configured for:
+- Video transcript fetching
+
+Note: The proxy is optional, and generally not necessary when running the agent locally
 
 ## Features
 
