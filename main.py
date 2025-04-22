@@ -11,6 +11,34 @@ from youtube_transcript_api import YouTubeTranscriptApi
 from youtube_transcript_api.proxies import WebshareProxyConfig
 from youtube_transcript_api.formatters import TextFormatter
 import asyncio
+import logging
+import sys
+
+# Configure logging
+def setup_logging():
+    """Configure console logging."""
+    # Create logger
+    logger = logging.getLogger('ai_press_review')
+    logger.setLevel(logging.INFO)
+
+    # Create console formatter
+    console_formatter = logging.Formatter(
+        '%(asctime)s - %(levelname)s - %(message)s',
+        datefmt='%H:%M:%S'
+    )
+
+    # Console handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(console_formatter)
+    console_handler.setLevel(logging.INFO)
+
+    # Add handler to logger
+    logger.addHandler(console_handler)
+
+    return logger
+
+# Initialize logger
+logger = setup_logging()
 
 # Load environment variables
 load_dotenv()
@@ -52,7 +80,7 @@ The video won't be summarized because of the error.
         
         await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
     except TelegramError as e:
-        print(f"Error sending error notification: {str(e)}")
+        logger.error(error_message)
 
 async def get_latest_video(channel_id):
     """Fetch the latest video from the specified YouTube channel."""
@@ -67,7 +95,7 @@ async def get_latest_video(channel_id):
         response = request.execute()
         
         if not response['items']:
-            print(f"No videos found for channel {channel_id}")
+            logger.info(f"No videos found for channel {channel_id}")
             return None
         
         video = response['items'][0]
@@ -80,7 +108,7 @@ async def get_latest_video(channel_id):
         }
     except Exception as e:
         error_message = f"Error getting latest video from channel {channel_id}: {str(e)}"
-        print(error_message)
+        logger.error(error_message)
         await send_error_notification("N/A", f"Channel {channel_id}", error_message)
         return None
 
@@ -118,7 +146,7 @@ def get_video_transcription_via_yt_transcription_lib(video_id, video_title):
         
     except Exception as e:
         error_message = f"Error getting video transcription: {str(e)}"
-        print(error_message)
+        logger.error(error_message)
         return None, error_message
 
 def get_video_transcription_via_yt_api(video_id, video_title):
@@ -132,6 +160,7 @@ def get_video_transcription_via_yt_api(video_id, video_title):
         captions_response = captions_request.execute()
         
         if not captions_response.get('items'):
+            logger.warning(f"No captions available for video {video_id}")
             return None, "No captions available for this video"
         
         # Get the first available caption track (usually the main one)
@@ -156,7 +185,7 @@ def get_video_transcription_via_yt_api(video_id, video_title):
         
     except Exception as e:
         error_message = f"Error getting video transcription: {str(e)}"
-        print(error_message)
+        logger.error(error_message)
         return None, error_message
 
 async def create_video_summary(video):
@@ -167,8 +196,8 @@ async def create_video_summary(video):
     transcription, error_message = get_video_transcription_via_yt_transcription_lib(video['video_id'], video['title'])
     
     if not transcription:
-        print(f"No transcription available for video {video['title']}")
         # Send error notification
+        # logger.warning(f"No transcription available for video {video['title']}")
         await send_error_notification(video['video_id'], video['title'], error_message if error_message is not None else "No transcription available")
         return None
     
@@ -208,9 +237,9 @@ async def create_video_summary(video):
         response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        print(f"Error generating summary with Gemini: {str(e)}")
-        # Send error notification for Gemini failure
-        await send_error_notification(video['video_id'], video['title'], f"Error generating summary with Gemini: {str(e)}")
+        error_message = f"Error generating summary with Gemini: {str(e)}"
+        logger.error(error_message)
+        await send_error_notification(video['video_id'], video['title'], error_message)
         return None
 
 async def send_telegram_message(video, summary):
@@ -226,7 +255,6 @@ async def send_telegram_message(video, summary):
         channel_response = channel_request.execute()
         channel_name = channel_response['items'][0]['snippet']['title'] if channel_response['items'] else "Unknown Channel"
         
-        # Format the message with markdown
         message = f"""
 🎥 *New Video Alert!* 🎥
 
@@ -243,7 +271,7 @@ async def send_telegram_message(video, summary):
             disable_web_page_preview=False
         )
     except TelegramError as e:
-        print(f"Error sending Telegram message: {str(e)}")
+        logger.error(f"Error sending Telegram message: {str(e)}")
 
 async def check_and_notify():
     """Main function to check for new videos and send notifications."""
@@ -254,22 +282,22 @@ async def check_and_notify():
         # Get the latest video
         latest_video = await get_latest_video(channel_id.strip())
         if not latest_video:
-            print(f"No videos found for channel {channel_id}")
+            logger.warning(f"No videos found for channel {channel_id}")
             continue
         
         # Check if the video was published in the last 6 hours
         video_published_at = datetime.fromisoformat(latest_video['published_at'].replace('Z', '+00:00'))
         if datetime.now(video_published_at.tzinfo) - video_published_at > timedelta(hours=6):
-            print(f"No new videos in the last 6 hours for channel {channel_id}")
+            logger.info(f"No new videos in the last 6 hours for channel {channel_id}")
             continue
         
         # Create summary and send notification
         summary = await create_video_summary(latest_video)
         if summary:  # Only send notification if summary was generated
             await send_telegram_message(latest_video, summary)
-            print(f"New video notification and summary sent successfully for channel {channel_id}")
+            logger.info(f"Successfully processed and notified about a new video from channel {channel_id}")
         else:
-            print(f"New video notification sent for channel {channel_id}, but there were errors in creating the summary")
+            logger.warning(f"Failed to process video from channel {channel_id}")
 
 @functions_framework.http
 def perform_press_review(request):
@@ -280,9 +308,9 @@ def perform_press_review(request):
 
 def perform_press_review_via_cli():
     """Command line entry point."""
-    print("Starting AI Press Review Agent via CLI...")
+    logger.info("Starting AI Press Review Agent via CLI")
     asyncio.run(check_and_notify())
-    print("AI Press Review Agent completed successfully via CLI")
+    logger.info("AI Press Review Agent completed successfully via CLI")
 
 if __name__ == "__main__":
     perform_press_review_via_cli()
