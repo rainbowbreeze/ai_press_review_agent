@@ -114,10 +114,11 @@ async def get_latest_video(channel_id):
 
 def get_video_transcription_via_yt_transcription_lib(video_id, video_title):
     """Extract the video transcription using youtube-transcript-api.
-    
-    Unfortunately, it seems this function is not working. Need to investigate
-      more, it was initially proposed by Cursor to get video transcript, but
-      it doesn't work both when run locally and when deployed to Cloud Function.
+
+    https://pypi.org/project/youtube-transcript-api/
+    This is an python API which allows you to get the transcripts/subtitles for a given YouTube video.
+      It also works for automatically generated subtitles, supports translating subtitles
+      and it does not require a headless browser, like other selenium based solutions do!
     """
     try:
 
@@ -150,7 +151,10 @@ def get_video_transcription_via_yt_transcription_lib(video_id, video_title):
         return None, error_message
 
 def get_video_transcription_via_yt_api(video_id, video_title):
-    """Extract the video transcription using YouTube Data API."""
+    """Extract the video transcription using YouTube Data API.
+
+        This method doesn't really work, at least with this code
+    """
     try:
         # Get the captions list
         captions_request = youtube.captions().list(

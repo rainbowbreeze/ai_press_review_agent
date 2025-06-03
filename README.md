@@ -2,7 +2,7 @@
 
 A service that monitors multiple YouTube channels for new videos and sends detailed summaries to a Telegram chat.
 
-## Setup
+## Setup for cloud run
 
 1. Create a `.env.yaml` file with the following variables:
 ```yaml
@@ -186,14 +186,37 @@ The proxy will be automatically configured for:
 
 Note: The proxy is optional, and generally not necessary when running the agent locally
 
+## Setup for local run
+Similar to the cloud run setup, with the difference that all the environmental vars need to go to a `.env` file, instead of `.env.yaml`.
+```bash
+YOUTUBE_API_KEY=your_youtube_api_key
+TELEGRAM_BOT_TOKEN=your_telegram_bot_token
+TELEGRAM_CHAT_ID=your_telegram_chat_id
+YOUTUBE_CHANNEL_IDS=channel_id1,channel_id2,channel_id3
+GEMINI_API_KEY=your_gemini_api_key
+```
+In addition `WEBSHARE_PROXY_USERNAME` and `WEBSHARE_PROXY_PASSWORD` are not needed when the app is run locally.
+
+Prepare the enviroment with the usual
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Then, run the program with
+```bash
+python main.py
+```
+
+
 ## Features
 
 - Monitors multiple YouTube channels for new videos
-- Checks for new videos every 6 hours
+- Checks for new videos at regular intervals based on the schedule time
 - Uses Gemini AI to generate detailed summaries including:
   - Comprehensive summary of main topics
   - Key takeaways
   - Notable quotes
   - Content analysis
 - Sends formatted notifications to Telegram
-- Includes fallback mechanism if Gemini API fails 
